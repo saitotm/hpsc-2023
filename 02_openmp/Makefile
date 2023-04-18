@@ -25,6 +25,10 @@
 12_pi: 12_pi.cpp
 	g++ 12_pi.cpp -fopenmp
 13_merge_sort: 13_merge_sort.cpp
-	g++ 13_merge_sort.cpp -fopenmp
+	g++ 13_merge_sort.cpp -fopenmp -std=c++17 -O3
 14_bucket_sort: 14_bucket_sort.cpp
 	g++ 14_bucket_sort.cpp -fopenmp
+
+.PHONY: clean
+clean:
+	rm a.out
