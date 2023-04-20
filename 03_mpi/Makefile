@@ -3,6 +3,7 @@
 	mpirun -np 4 ./a.out
 01_nbody: 01_nbody.cpp
 	mpicxx 01_nbody.cpp
+	mpirun -np 4 ./a.out
 02_split: 02_split.cpp
 	mpicxx 02_split.cpp
 03_gather: 03_gather.cpp
