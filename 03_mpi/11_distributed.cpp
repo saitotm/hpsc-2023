@@ -26,19 +26,33 @@ int main(int argc, char** argv) {
   MPI_Datatype MPI_BODY;
   MPI_Type_contiguous(5, MPI_DOUBLE, &MPI_BODY);
   MPI_Type_commit(&MPI_BODY);
+
+  MPI_Win win;
+  Body jbody_recv[N/size];
+  MPI_Win_create(jbody_recv, N/size * sizeof(Body), sizeof(Body), MPI_INFO_NULL, MPI_COMM_WORLD, &win);
+
   for(int irank=0; irank<size; irank++) {
-    MPI_Send(jbody, N/size, MPI_BODY, send_to, 0, MPI_COMM_WORLD);
-    MPI_Recv(jbody, N/size, MPI_BODY, recv_from, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    // MPI_Send(jbody, N/size, MPI_BODY, send_to, 0, MPI_COMM_WORLD);
+    // MPI_Recv(jbody, N/size, MPI_BODY, recv_from, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+    MPI_Win_fence(0, win);
+    MPI_Put(jbody, N/size, MPI_BODY, send_to, 0, N/size, MPI_BODY, win);
+    MPI_Win_fence(0, win);
+
     for(int i=0; i<N/size; i++) {
       for(int j=0; j<N/size; j++) {
-        double rx = ibody[i].x - jbody[j].x;
-        double ry = ibody[i].y - jbody[j].y;
+        double rx = ibody[i].x - jbody_recv[j].x;
+        double ry = ibody[i].y - jbody_recv[j].y;
         double r = std::sqrt(rx * rx + ry * ry);
         if (r > 1e-15) {
-          ibody[i].fx -= rx * jbody[j].m / (r * r * r);
-          ibody[i].fy -= ry * jbody[j].m / (r * r * r);
+          ibody[i].fx -= rx * jbody_recv[j].m / (r * r * r);
+          ibody[i].fy -= ry * jbody_recv[j].m / (r * r * r);
         }
       }
+    }
+    
+    for (int i = 0; i < N/size; i++) {
+        jbody[i] = jbody_recv[i];
     }
   }
   for(int irank=0; irank<size; irank++) {
@@ -49,5 +63,7 @@ int main(int argc, char** argv) {
       }
     }
   }
+
+  MPI_Win_free(&win);
   MPI_Finalize();
 }
