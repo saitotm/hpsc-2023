@@ -6,7 +6,6 @@
 int main() {
   const int N = 8;
   float x[N], y[N], m[N], fx[N], fy[N];
-  float tmp[N];
   for(int i=0; i<N; i++) {
     x[i] = drand48();
     y[i] = drand48();
@@ -18,16 +17,6 @@ int main() {
     __m256 jvec = _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0);
 
     __m256 mask;
-
-    _mm256_store_ps(tmp, ivec);
-    for(int j=0; j<N; j++) {
-        printf("%d ivec %d %g\n", i, j, tmp[j]);
-    }
-
-    _mm256_store_ps(tmp, jvec);
-    for(int j=0; j<N; j++) {
-        printf("%d jvec %d %g\n", i, j, tmp[j]);
-    }
 
     __m256 xivec = _mm256_set1_ps(x[i]);
     __m256 xvec = _mm256_load_ps(x);
@@ -74,26 +63,11 @@ int main() {
     fyvecdiff2 = _mm256_hadd_ps(fyvecdiff2,fyvecdiff2);
     fyvecdiff2 = _mm256_hadd_ps(fyvecdiff2,fyvecdiff2);
 
-    _mm256_store_ps(tmp, fxvec);
-    for(int j=0; j<N; j++) {
-        printf("fxvec0 %d %g\n",j, tmp[j]);
-    }
-
     __m256 fxveci = _mm256_sub_ps(fxvec, fxvecdiff2);
     __m256 fyveci = _mm256_sub_ps(fyvec, fyvecdiff2);
 
-    _mm256_store_ps(tmp, fxveci);
-    for(int j=0; j<N; j++) {
-        printf("%d fxveci %d %g\n", i, j, tmp[j]);
-    }
-
     fxvec = _mm256_blendv_ps(fxvec, fxveci, mask);
     fyvec = _mm256_blendv_ps(fyvec, fyveci, mask);
-
-    _mm256_store_ps(tmp, fxvec);
-    for(int j=0; j<N; j++) {
-        printf("fxvec1 %d %g\n",j, tmp[j]);
-    }
 
     _mm256_store_ps(fx, fxvec);
     _mm256_store_ps(fy, fyvec);
@@ -108,9 +82,5 @@ int main() {
     //  }
     //}
     printf("%d %g %g\n",i,fx[i],fy[i]);
-
-    for(int j=0; j<N; j++) {
-        printf("- %d %g %g\n",j,fx[j],fy[j]);
-    }
   }
 }
