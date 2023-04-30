@@ -45,8 +45,8 @@ int main() {
     __m256 fxvecdiff = _mm256_mul_ps(rxvec, mvec);
     __m256 fyvecdiff = _mm256_mul_ps(ryvec, mvec);
 
-    fxvecdiff = _mm256_mul_ps(fxvec, rsqrt3vec);
-    fyvecdiff = _mm256_mul_ps(fyvec, rsqrt3vec);
+    fxvecdiff = _mm256_mul_ps(fxvecdiff, rsqrt3vec);
+    fyvecdiff = _mm256_mul_ps(fyvecdiff, rsqrt3vec);
 
     fxvec = _mm256_sub_ps(fxvec, fxvecdiff);
     fyvec = _mm256_sub_ps(fyvec, fyvecdiff);
