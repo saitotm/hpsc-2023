@@ -17,7 +17,7 @@ int main() {
     __m256 ivec = _mm256_set1_ps(i);
     __m256 jvec = _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0);
 
-    __m256 mask = _mm256_cmp_ps(ivec, jvec, _CMP_EQ_OQ);
+    __m256 mask;
 
     _mm256_store_ps(tmp, ivec);
     for(int j=0; j<N; j++) {
@@ -27,11 +27,6 @@ int main() {
     _mm256_store_ps(tmp, jvec);
     for(int j=0; j<N; j++) {
         printf("%d jvec %d %g\n", i, j, tmp[j]);
-    }
-
-    _mm256_store_ps(tmp, mask);
-    for(int j=0; j<N; j++) {
-        printf("%d mask %d %g\n", i, j, tmp[j]);
     }
 
     __m256 xivec = _mm256_set1_ps(x[i]);
@@ -63,18 +58,35 @@ int main() {
     fxvecdiff = _mm256_mul_ps(fxvecdiff, rsqrt3vec);
     fyvecdiff = _mm256_mul_ps(fyvecdiff, rsqrt3vec);
 
-    __m256 fxveci = _mm256_sub_ps(fxvec, fxvecdiff);
-    __m256 fyveci = _mm256_sub_ps(fyvec, fyvecdiff);
+    __m256 zerovec = _mm256_setzero_ps();
+    mask = _mm256_cmp_ps(ivec, jvec, _CMP_EQ_OQ);
 
-    //fxvec = _mm256_sub_ps(fxvec, fxvecdiff);
-    //fyvec = _mm256_sub_ps(fyvec, fyvecdiff);
+    fxvecdiff = _mm256_blendv_ps(fxvecdiff, zerovec, mask);
+    fyvecdiff = _mm256_blendv_ps(fyvecdiff, zerovec, mask);
+
+    __m256 fxvecdiff2 = _mm256_permute2f128_ps(fxvecdiff,fxvecdiff,1);
+    fxvecdiff2 = _mm256_add_ps(fxvecdiff2,fxvecdiff);
+    fxvecdiff2 = _mm256_hadd_ps(fxvecdiff2,fxvecdiff2);
+    fxvecdiff2 = _mm256_hadd_ps(fxvecdiff2,fxvecdiff2);
+
+    __m256 fyvecdiff2 = _mm256_permute2f128_ps(fyvecdiff,fyvecdiff,1);
+    fyvecdiff2 = _mm256_add_ps(fyvecdiff2,fyvecdiff);
+    fyvecdiff2 = _mm256_hadd_ps(fyvecdiff2,fyvecdiff2);
+    fyvecdiff2 = _mm256_hadd_ps(fyvecdiff2,fyvecdiff2);
 
     _mm256_store_ps(tmp, fxvec);
     for(int j=0; j<N; j++) {
         printf("fxvec0 %d %g\n",j, tmp[j]);
     }
 
-    //__m256 zerovec = _mm256_setzero_ps();
+    __m256 fxveci = _mm256_sub_ps(fxvec, fxvecdiff2);
+    __m256 fyveci = _mm256_sub_ps(fyvec, fyvecdiff2);
+
+    _mm256_store_ps(tmp, fxveci);
+    for(int j=0; j<N; j++) {
+        printf("%d fxveci %d %g\n", i, j, tmp[j]);
+    }
+
     fxvec = _mm256_blendv_ps(fxvec, fxveci, mask);
     fyvec = _mm256_blendv_ps(fyvec, fyveci, mask);
 
