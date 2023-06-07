@@ -1,14 +1,18 @@
+#include <cooperative_groups.h>
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
 
-static const int gridSize = 4;
-static const int threadBlockSize = 1;
+using namespace cooperative_groups;
+
+static const int threadsPerBlock = 32;
+static const int tileSize = 4;
+static const int elmentsPerBlock = threadsPerBlock * tileSize;
 
 __global__
 void bucket_sort(int * const bucket, int * const key, const int range, const int n) {
-    const int size = (n + gridDim.x - 1) / gridDim.x;
-    const int offset = size * blockIdx.x;
+    const int offset_idx = elmentsPerBlock * blockIdx.x + tileSize * threadIdx.x;
+    const grid_group grid = this_grid();
 
     int * const bucket_tmp = new int[range];
 
@@ -16,9 +20,8 @@ void bucket_sort(int * const bucket, int * const key, const int range, const int
         bucket_tmp[i] = 0;
     }
 
-
-    for (int i = 0; i < size; i++) {
-        const int idx = offset + i;
+    for (int i = 0; i < tileSize; i++) {
+        const int idx = offset_idx + i;
 
         if (idx < n) {
             bucket_tmp[key[idx]]++;
@@ -29,6 +32,7 @@ void bucket_sort(int * const bucket, int * const key, const int range, const int
         atomicAdd(bucket + i, bucket_tmp[i]);
     }
 
+    grid.sync();
     if (blockIdx.x == 0 && threadIdx.x == 0) {
         for (int i=0, j=0; i<range; i++) {
           for (; bucket[i]>0; bucket[i]--) {
@@ -70,7 +74,9 @@ int main() {
     }
   }
   */
-  bucket_sort<<<gridSize, threadBlockSize>>>(bucket, key, range, n);
+  void *args[] = {(void *)&bucket, (void *)&key, (void *)&range, (void *)&n};
+  //bucket_sort<<<(n + elmentsPerBlock - 1) / elmentsPerBlock, threadsPerBlock>>>(bucket, key, range, n);
+  cudaLaunchCooperativeKernel((void *)bucket_sort, (n + elmentsPerBlock - 1) / elmentsPerBlock, threadsPerBlock, args);
   cudaDeviceSynchronize();
 
   for (int i=0; i<range; i++) {
