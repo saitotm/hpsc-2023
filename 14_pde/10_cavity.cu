@@ -198,14 +198,14 @@ int main() {
         printf("step=%d, %lf [(s)]\n", n, time);
     }
 
+#if 0
     for (int j = 0; j < std::min(ny, 5); j++) {
         for (int i = 0; i < std::min(nx, 5); i++) {
             printf("u[(%d) * nx + (%d)] = %e\n", j, i, u[(j) * nx + (i)]);
             printf("v[(%d) * nx + (%d)] = %e\n", j, i, v[(j) * nx + (i)]);
         }
     }
-
-    cudaDeviceSynchronize();
+#endif
 
     cudaFree(u );
     cudaFree(v );
