@@ -11,31 +11,41 @@ const int threadBlockY = 4;
 
 const int threadBlockSize = threadBlockX * threadBlockY;
 
-__global__
-void kernel(const int nx, const int ny) {
-    const int ix = threadBlockX * blockIdx.x + threadIdx.x;
-    const int iy = threadBlockY * blockIdx.y + threadIdx.y;
+const int nx = 41;
+const int ny = 41;
+const int nt = 500;
+const int nit = 50;
+const float dx = 2. / (nx - 1);
+const float dy = 2. / (ny - 1);
+const float dt = .01;
+const float rho = 1;
+const float nu = .02;
 
-    if (ix < nx && iy < ny) {
-        /*
-         b[(j)][(i)] = rho * (1 / dt *
-                 ((u[(j)][(i+1)] - u[(j)][(i-1)]) / (2 * dx) + (v[(j+1)][(i)] - v[(j-1)][(i)]) / (2 * dy)) -
-                 ((u[(j)][(i+1)] - u[(j)][(i-1)]) / (2 * dx)) * ((u[(j)][(i+1)] - u[(j)][(i-1)]) / (2 * dx)) - 2 * ((u[(j+1)][(i)] - u[(j-1)][(i)]) / (2 * dy) *
-                  (v[(j)][(i+1)] - v[(j)][(i-1)]) / (2 * dx)) - ((v[(j+1)][(i)] - v[(j-1)][(i)]) / (2 * dy)) * ((v[(j+1)][(i)] - v[(j-1)][(i)]) / (2 * dy)));
-                  */
+__global__
+void kernel(
+        const int nx,
+        const int ny,
+        float *u,
+        float *v,
+        float *p,
+        float *b,
+        float *un,
+        float *vn,
+        float *pn) {
+    const int i = threadBlockX * blockIdx.x + threadIdx.x;
+    const int j = threadBlockY * blockIdx.y + threadIdx.y;
+
+    if (i < nx && j < ny) {
+        if (1 <= i && i < nx - 1 && 1 <= j && j < ny - 1) {
+             b[(j) * nx + (i)] = rho * (1 / dt *
+                     ((u[(j) * nx + (i+1)] - u[(j) * nx + (i-1)]) / (2 * dx) + (v[(j+1) * nx + (i)] - v[(j-1) * nx + (i)]) / (2 * dy)) -
+                     ((u[(j) * nx + (i+1)] - u[(j) * nx + (i-1)]) / (2 * dx)) * ((u[(j) * nx + (i+1)] - u[(j) * nx + (i-1)]) / (2 * dx)) - 2 * ((u[(j+1) * nx + (i)] - u[(j-1) * nx + (i)]) / (2 * dy) *
+                      (v[(j) * nx + (i+1)] - v[(j) * nx + (i-1)]) / (2 * dx)) - ((v[(j+1) * nx + (i)] - v[(j-1) * nx + (i)]) / (2 * dy)) * ((v[(j+1) * nx + (i)] - v[(j-1) * nx + (i)]) / (2 * dy)));
+        }
     }
 }
 
 int main() {
-    const int nx = 41;
-    const int ny = 41;
-    const int nt = 500;
-    const int nit = 50;
-    const float dx = 2. / (nx - 1);
-    const float dy = 2. / (ny - 1);
-    const float dt = .01;
-    const float rho = 1;
-    const float nu = .02;
 
     vector<float> x(nx);
     vector<float> y(ny);
@@ -48,13 +58,33 @@ int main() {
         y[(j)] = j * dy;
     }
 
-    vector<float> u(ny * nx, 0);
-    vector<float> v(ny * nx, 0);
-    vector<float> p(ny * nx, 0);
-    vector<float> b(ny * nx, 0);
-    vector<float> un(ny * nx, 0);
-    vector<float> vn(ny * nx, 0);
-    vector<float> pn(ny * nx, 0);
+    float *u;
+    float *v;
+    float *p;
+    float *b;
+    float *un;
+    float *vn;
+    float *pn;
+
+    cudaMallocManaged(&u , ny * nx * sizeof(float));
+    cudaMallocManaged(&v , ny * nx * sizeof(float));
+    cudaMallocManaged(&p , ny * nx * sizeof(float));
+    cudaMallocManaged(&b , ny * nx * sizeof(float));
+    cudaMallocManaged(&un, ny * nx * sizeof(float));
+    cudaMallocManaged(&vn, ny * nx * sizeof(float));
+    cudaMallocManaged(&pn, ny * nx * sizeof(float));
+
+    for (int j = 0; j < ny; j++) {
+        for (int i = 0; i < nx; i++) {
+            u [j * nx + i] = 0;
+            v [j * nx + i] = 0;
+            p [j * nx + i] = 0;
+            b [j * nx + i] = 0;
+            un[j * nx + i] = 0;
+            vn[j * nx + i] = 0;
+            pn[j * nx + i] = 0;
+        }
+    }
 
     for (int n = 0; n < nt; n++) {
         const auto tic = chrono::steady_clock::now();
@@ -135,8 +165,8 @@ int main() {
         printf("step=%d, %lf [(s)]\n", n, time);
     }
 
-    for (int j = 0; j < 5; j++) {
-        for (int i = 0; i < 5; i++) {
+    for (int j = 0; j < ny; j++) {
+        for (int i = 0; i < nx; i++) {
             printf("u[(%d) * nx + (%d)] = %e\n", j, i, u[(j) * nx + (i)]);
             printf("v[(%d) * nx + (%d)] = %e\n", j, i, v[(j) * nx + (i)]);
         }
@@ -147,6 +177,14 @@ int main() {
     //kernel<<<grid, block>>>(nx, ny);
 
     cudaDeviceSynchronize();
+
+    cudaFree(u );
+    cudaFree(v );
+    cudaFree(p );
+    cudaFree(b );
+    cudaFree(un);
+    cudaFree(vn);
+    cudaFree(pn);
 
     return 0;
 }
