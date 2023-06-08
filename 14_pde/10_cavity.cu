@@ -65,6 +65,35 @@ void update_p_inner(
     }
 }
 
+__global__
+void update_uv_inner(
+        const int nx,
+        const int ny,
+        float *u,
+        float *v,
+        float *p,
+        float *b,
+        float *un,
+        float *vn,
+        float *pn) {
+    const int i = threadBlockX * blockIdx.x + threadIdx.x;
+    const int j = threadBlockY * blockIdx.y + threadIdx.y;
+
+    if (1 <= i && i < nx - 1 && 1 <= j && j < ny - 1) {
+        u[(j) * nx + (i)] = un[(j) * nx + (i)] - un[(j) * nx + (i)] * dt / dx * (un[(j) * nx + (i)] - un[(j) * nx + (i - 1)])
+                           - un[(j) * nx + (i)] * dt / dy * (un[(j) * nx + (i)] - un[(j - 1) * nx + (i)])
+                           - dt / (2 * rho * dx) * (p[(j) * nx + (i+1)] - p[(j) * nx + (i-1)])\
+                           + nu * dt / dx * dx * (un[(j) * nx + (i+1)] - 2 * un[(j) * nx + (i)] + un[(j) * nx + (i-1)])
+                           + nu * dt / dy * dy * (un[(j+1) * nx + (i)] - 2 * un[(j) * nx + (i)] + un[(j-1) * nx + (i)]);
+
+        v[(j) * nx + (i)] = vn[(j) * nx + (i)] - vn[(j) * nx + (i)] * dt / dx * (vn[(j) * nx + (i)] - vn[(j) * nx + (i - 1)])
+                           - vn[(j) * nx + (i)] * dt / dy * (vn[(j) * nx + (i)] - vn[(j - 1) * nx + (i)])
+                           - dt / (2 * rho * dx) * (p[(j+1) * nx + (i)] - p[(j-1) * nx + (i)])
+                           + nu * dt / dx * dx * (vn[(j) * nx + (i+1)] - 2 * vn[(j) * nx + (i)] + vn[(j) * nx + (i-1)])
+                           + nu * dt / dy * dy * (vn[(j+1) * nx + (i)] - 2 * vn[(j) * nx + (i)] + vn[(j-1) * nx + (i)]);
+    }
+}
+
 int main() {
 
     vector<float> x(nx);
@@ -146,21 +175,9 @@ int main() {
             }
         }
 
-        for (int j = 1; j < ny - 1; j++) {
-            for (int i = 1; i < nx - 1; i++) {
-                u[(j) * nx + (i)] = un[(j) * nx + (i)] - un[(j) * nx + (i)] * dt / dx * (un[(j) * nx + (i)] - un[(j) * nx + (i - 1)])
-                                   - un[(j) * nx + (i)] * dt / dy * (un[(j) * nx + (i)] - un[(j - 1) * nx + (i)])
-                                   - dt / (2 * rho * dx) * (p[(j) * nx + (i+1)] - p[(j) * nx + (i-1)])\
-                                   + nu * dt / dx * dx * (un[(j) * nx + (i+1)] - 2 * un[(j) * nx + (i)] + un[(j) * nx + (i-1)])
-                                   + nu * dt / dy * dy * (un[(j+1) * nx + (i)] - 2 * un[(j) * nx + (i)] + un[(j-1) * nx + (i)]);
-
-                v[(j) * nx + (i)] = vn[(j) * nx + (i)] - vn[(j) * nx + (i)] * dt / dx * (vn[(j) * nx + (i)] - vn[(j) * nx + (i - 1)])
-                                   - vn[(j) * nx + (i)] * dt / dy * (vn[(j) * nx + (i)] - vn[(j - 1) * nx + (i)])
-                                   - dt / (2 * rho * dx) * (p[(j+1) * nx + (i)] - p[(j-1) * nx + (i)])
-                                   + nu * dt / dx * dx * (vn[(j) * nx + (i+1)] - 2 * vn[(j) * nx + (i)] + vn[(j) * nx + (i-1)])
-                                   + nu * dt / dy * dy * (vn[(j+1) * nx + (i)] - 2 * vn[(j) * nx + (i)] + vn[(j-1) * nx + (i)]);
-            }
-        }
+        cudaDeviceSynchronize();
+        update_uv_inner<<<grid, block>>>(nx, ny, u, v, p, b, un, vn, pn);
+        cudaDeviceSynchronize();
 
         for (int j = 0; j < ny; j++) {
             u[(j) * nx + (0)]  = 0;
