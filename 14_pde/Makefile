@@ -1,4 +1,4 @@
-10_cavity: 10_cavity.cpp
+10_cavity: 10_cavity.cu
 	nvcc -std=c++14 10_cavity.cu
 
 .PHONY: clean
