@@ -86,16 +86,16 @@ int main() {
         }
     }
 
+
+    const dim3 grid((nx + threadBlockX - 1)/ threadBlockX, (ny + threadBlockY - 1) / threadBlockY);
+    const dim3 block(threadBlockX, threadBlockY);
+
     for (int n = 0; n < nt; n++) {
         const auto tic = chrono::steady_clock::now();
-        for (int j = 1; j < ny-1; j++) {
-            for (int i = 1; i < nx - 1; i++) {
-             b[(j) * nx + (i)] = rho * (1 / dt *
-                     ((u[(j) * nx + (i+1)] - u[(j) * nx + (i-1)]) / (2 * dx) + (v[(j+1) * nx + (i)] - v[(j-1) * nx + (i)]) / (2 * dy)) -
-                     ((u[(j) * nx + (i+1)] - u[(j) * nx + (i-1)]) / (2 * dx)) * ((u[(j) * nx + (i+1)] - u[(j) * nx + (i-1)]) / (2 * dx)) - 2 * ((u[(j+1) * nx + (i)] - u[(j-1) * nx + (i)]) / (2 * dy) *
-                      (v[(j) * nx + (i+1)] - v[(j) * nx + (i-1)]) / (2 * dx)) - ((v[(j+1) * nx + (i)] - v[(j-1) * nx + (i)]) / (2 * dy)) * ((v[(j+1) * nx + (i)] - v[(j-1) * nx + (i)]) / (2 * dy)));
-            }
-        }
+
+        cudaDeviceSynchronize();
+        kernel<<<grid, block>>>(nx, ny, u, v, p, b, un, vn, pn);
+        cudaDeviceSynchronize();
 
         for (int it = 0; it < nit; it++) {
             for (int j = 0; j < ny; j++) {
@@ -165,16 +165,12 @@ int main() {
         printf("step=%d, %lf [(s)]\n", n, time);
     }
 
-    for (int j = 0; j < ny; j++) {
-        for (int i = 0; i < nx; i++) {
+    for (int j = 0; j < std::min(ny, 5); j++) {
+        for (int i = 0; i < std::min(nx, 5); i++) {
             printf("u[(%d) * nx + (%d)] = %e\n", j, i, u[(j) * nx + (i)]);
             printf("v[(%d) * nx + (%d)] = %e\n", j, i, v[(j) * nx + (i)]);
         }
     }
-
-    const dim3 grid((nx + threadBlockX - 1)/ threadBlockX, (ny + threadBlockY - 1) / threadBlockY);
-    const dim3 block(threadBlockX, threadBlockY);
-    //kernel<<<grid, block>>>(nx, ny);
 
     cudaDeviceSynchronize();
 
