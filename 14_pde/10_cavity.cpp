@@ -2,6 +2,7 @@
 
 #include<iostream>
 #include<vector>
+#include<chrono>
 
 using namespace std;
 using matrix = vector<vector<float>>;
@@ -37,6 +38,7 @@ int main() {
     matrix pn(ny, vector<float>(nx, 0));
 
     for (int n = 0; n < nt; n++) {
+        const auto tic = chrono::steady_clock::now();
         for (int j = 1; j < ny-1; j++) {
             for (int i = 1; i < nx - 1; i++) {
              b[j][i] = rho * (1 / dt *
@@ -71,6 +73,7 @@ int main() {
                 p[ny - 1][i] = 0;
             }
         }
+
         for (int j = 0; j < ny; j++) {
             for (int i = 0; i < nx; i++) {
                 un[j][i] = u[j][i];
@@ -108,6 +111,16 @@ int main() {
             v[ny - 1][i] = 0;
         }
 
+        const auto toc = chrono::steady_clock::now();
+        const double time = chrono::duration<double>(toc - tic).count();
+        printf("step=%d, %lf [s]\n", n, time);
+    }
+
+    for (int j = 0; j < 5; j++) {
+        for (int i = 0; i < 5; i++) {
+            printf("u[%d][%d] = %e\n", j, i, u[j][i]);
+            printf("v[%d][%d] = %e\n", j, i, v[j][i]);
+        }
     }
 
     return 0;
