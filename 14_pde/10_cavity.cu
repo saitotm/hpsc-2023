@@ -22,7 +22,7 @@ const float rho = 1;
 const float nu = .02;
 
 __global__
-void kernel(
+void update_b_inner(
         const int nx,
         const int ny,
         float *u,
@@ -35,13 +35,33 @@ void kernel(
     const int i = threadBlockX * blockIdx.x + threadIdx.x;
     const int j = threadBlockY * blockIdx.y + threadIdx.y;
 
-    if (i < nx && j < ny) {
-        if (1 <= i && i < nx - 1 && 1 <= j && j < ny - 1) {
-             b[(j) * nx + (i)] = rho * (1 / dt *
-                     ((u[(j) * nx + (i+1)] - u[(j) * nx + (i-1)]) / (2 * dx) + (v[(j+1) * nx + (i)] - v[(j-1) * nx + (i)]) / (2 * dy)) -
-                     ((u[(j) * nx + (i+1)] - u[(j) * nx + (i-1)]) / (2 * dx)) * ((u[(j) * nx + (i+1)] - u[(j) * nx + (i-1)]) / (2 * dx)) - 2 * ((u[(j+1) * nx + (i)] - u[(j-1) * nx + (i)]) / (2 * dy) *
-                      (v[(j) * nx + (i+1)] - v[(j) * nx + (i-1)]) / (2 * dx)) - ((v[(j+1) * nx + (i)] - v[(j-1) * nx + (i)]) / (2 * dy)) * ((v[(j+1) * nx + (i)] - v[(j-1) * nx + (i)]) / (2 * dy)));
-        }
+    if (1 <= i && i < nx - 1 && 1 <= j && j < ny - 1) {
+         b[(j) * nx + (i)] = rho * (1 / dt *
+                 ((u[(j) * nx + (i+1)] - u[(j) * nx + (i-1)]) / (2 * dx) + (v[(j+1) * nx + (i)] - v[(j-1) * nx + (i)]) / (2 * dy)) -
+                 ((u[(j) * nx + (i+1)] - u[(j) * nx + (i-1)]) / (2 * dx)) * ((u[(j) * nx + (i+1)] - u[(j) * nx + (i-1)]) / (2 * dx)) - 2 * ((u[(j+1) * nx + (i)] - u[(j-1) * nx + (i)]) / (2 * dy) *
+                  (v[(j) * nx + (i+1)] - v[(j) * nx + (i-1)]) / (2 * dx)) - ((v[(j+1) * nx + (i)] - v[(j-1) * nx + (i)]) / (2 * dy)) * ((v[(j+1) * nx + (i)] - v[(j-1) * nx + (i)]) / (2 * dy)));
+    }
+}
+
+__global__
+void update_p_inner(
+        const int nx,
+        const int ny,
+        float *u,
+        float *v,
+        float *p,
+        float *b,
+        float *un,
+        float *vn,
+        float *pn) {
+    const int i = threadBlockX * blockIdx.x + threadIdx.x;
+    const int j = threadBlockY * blockIdx.y + threadIdx.y;
+
+    if (1 <= i && i < nx - 1 && 1 <= j && j < ny - 1) {
+        p[(j) * nx + (i)] = (dy * dy * (pn[(j) * nx + (i+1)] + pn[(j) * nx + (i-1)]) +
+                   dx * dx * (pn[(j+1) * nx + (i)] + pn[(j-1) * nx + (i)]) -
+                   b[(j) * nx + (i)] * dx * dx * dy * dy)\
+                  / (2 * (dx * dx + dy * dy));
     }
 }
 
@@ -94,7 +114,7 @@ int main() {
         const auto tic = chrono::steady_clock::now();
 
         cudaDeviceSynchronize();
-        kernel<<<grid, block>>>(nx, ny, u, v, p, b, un, vn, pn);
+        update_b_inner<<<grid, block>>>(nx, ny, u, v, p, b, un, vn, pn);
         cudaDeviceSynchronize();
 
         for (int it = 0; it < nit; it++) {
@@ -104,14 +124,10 @@ int main() {
                 }
             }
 
-            for (int j = 1; j < ny - 1; j++) {
-                for (int i = 1; i < nx - 1; i++) {
-                    p[(j) * nx + (i)] = (dy * dy * (pn[(j) * nx + (i+1)] + pn[(j) * nx + (i-1)]) +
-                               dx * dx * (pn[(j+1) * nx + (i)] + pn[(j-1) * nx + (i)]) -
-                               b[(j) * nx + (i)] * dx * dx * dy * dy)\
-                              / (2 * (dx * dx + dy * dy));
-                }
-            }
+            cudaDeviceSynchronize();
+            update_p_inner<<<grid, block>>>(nx, ny, u, v, p, b, un, vn, pn);
+            cudaDeviceSynchronize();
+
             for (int j = 1; j < ny - 1; j++) {
                 p[(j) * nx + (nx - 1)] = p[(j) * nx + (nx-2)];
                 p[(j) * nx + (0)] = p[(j) * nx + (1)];
